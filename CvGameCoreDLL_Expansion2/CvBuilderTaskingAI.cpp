@@ -904,6 +904,9 @@ set<int> CvBuilderTaskingAI::GetStrategicRoutePlots() const
 
 bool CvBuilderTaskingAI::IsRoutePlanned(CvPlot* pPlot, RouteTypes eRoute, RoutePurpose ePurpose) const
 {
+	if (pPlot->GetPlannedRouteState(m_pPlayer->GetID()) == ROAD_PLANNING_INCLUDE)
+		return true;
+
 	return m_anyRoutePlanned.find(make_pair(make_pair(eRoute, pPlot->GetPlotIndex()), ePurpose)) != m_anyRoutePlanned.end();
 }
 

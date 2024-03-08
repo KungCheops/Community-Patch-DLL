@@ -2225,6 +2225,20 @@ int CvLuaPlot::lSetCityPurchaseID(lua_State* L)
 	return 0;
 }
 
+//------------------------------------------------------------------------------
+//void GetPlannedRouteState(PlayerTypes ePlayer);
+int CvLuaPlot::lGetPlannedRouteState(lua_State* L)
+{
+	return BasicLuaMethod(L, &CvPlot::GetPlannedRouteState);
+}
+
+//------------------------------------------------------------------------------
+//void SetPlannedRouteState(PlayerTypes ePlayer, RoutePlanTypes eRoutePlanType);
+int CvLuaPlot::lSetPlannedRouteState(lua_State* L)
+{
+	return BasicLuaMethod(L, &CvPlot::SetPlannedRouteState);
+}
+
 int CvLuaPlot::lGetAirUnitsTooltip(lua_State* L)
 {
 	CvString AirTT = "";

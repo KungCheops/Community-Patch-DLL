@@ -321,6 +321,9 @@ protected:
 
 	static int lGetAirUnitsTooltip(lua_State* L);
 
+	static int lGetPlannedRouteState(lua_State* L);
+	static int lSetPlannedRouteState(lua_State* L);
+
 	LUAAPIEXTN(AddMessage, void, sMessage, iNotifyPlayer);
 	LUAAPIEXTN(AddPopupMessage, void, sMessage, fDelay, iNotifyPlayer);
 
