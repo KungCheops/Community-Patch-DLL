@@ -904,7 +904,7 @@ set<int> CvBuilderTaskingAI::GetStrategicRoutePlots() const
 
 bool CvBuilderTaskingAI::IsRoutePlanned(CvPlot* pPlot, RouteTypes eRoute, RoutePurpose ePurpose) const
 {
-	if (pPlot->GetPlannedRouteState(m_pPlayer->GetID()) == ROAD_PLANNING_INCLUDE)
+	if (pPlot->GetPlannedRouteState(m_pPlayer->GetID()) >= ROAD_PLANNING_INCLUDE)
 		return true;
 
 	return m_anyRoutePlanned.find(make_pair(make_pair(eRoute, pPlot->GetPlotIndex()), ePurpose)) != m_anyRoutePlanned.end();
@@ -1790,6 +1790,7 @@ vector<OptionWithScore<BuilderDirective>> CvBuilderTaskingAI::GetImprovementDire
 	//cache this
 	// TODO include net gold in all gold yield/maintenance computations
 	int iNetGoldTimes100 = m_pPlayer->GetTreasury()->CalculateBaseNetGoldTimes100();
+	RouteTypes eBestRoute = m_pPlayer->getBestRoute();
 
 	for (int iI = 0; iI < GC.getMap().numPlots(); iI++)
 	{
@@ -1834,6 +1835,10 @@ vector<OptionWithScore<BuilderDirective>> CvBuilderTaskingAI::GetImprovementDire
 		if (pPlot->GetPlayerResponsibleForRoute() == m_pPlayer->GetID())
 		{
 			AddRemoveRouteDirective(aDirectives, pPlot, iNetGoldTimes100);
+		}
+		if (pPlot->GetPlannedRouteState(m_pPlayer->GetID()) == ROAD_PLANNING_PRIORITY_CONSTRUCTION)
+		{
+			AddRouteDirective(aDirectives, pPlot, eBestRoute, 1000);
 		}
 	}
 

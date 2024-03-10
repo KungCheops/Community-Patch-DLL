@@ -308,6 +308,9 @@ void CvLuaPlot::PushMethods(lua_State* L, int t)
 	Method(SetCityPurchaseID);
 	Method(GetAirUnitsTooltip);
 
+	Method(GetPlannedRouteState);
+	Method(SetPlannedRouteState);
+
 	Method(AddMessage);
 	Method(AddPopupMessage);
 
