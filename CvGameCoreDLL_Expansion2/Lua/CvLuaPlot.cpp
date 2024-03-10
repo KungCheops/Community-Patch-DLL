@@ -20,6 +20,7 @@
 #include "CvLuaCity.h"
 #include "CvLuaPlot.h"
 #include "CvLuaUnit.h"
+#include "CvLuaPlayer.h"
 #include "../CvGameCoreUtils.h"
 
 #pragma warning(disable:4800 ) //forcing value to bool 'true' or 'false'
@@ -365,6 +366,11 @@ void CvLuaPlot::PushMethods(lua_State* L, int t)
 	Method(IsWithinDistanceOfTerrain);
 	Method(GetEffectiveFlankingBonus);
 	Method(GetEffectiveFlankingBonusAtRange);
+
+	// Debug methods for routes
+	Method(IsMainRoutePlan);
+	Method(IsShortcutRoutePlan);
+	Method(IsStrategicRoutePlan);
 }
 //------------------------------------------------------------------------------
 void CvLuaPlot::HandleMissingInstance(lua_State* L)
@@ -2281,6 +2287,42 @@ int CvLuaPlot::lGetAirUnitsTooltip(lua_State* L)
 	}
 
 	lua_pushstring(L, AirTT.c_str());
+	return 1;
+}
+
+//------------------------------------------------------------------------------
+//bool IsMainRouteTile(CvPlot* pPlot);
+int CvLuaPlot::lIsMainRoutePlan(lua_State* L)
+{
+	CvPlot* pPlot = GetInstance(L);
+	CvPlayer* pkPlayer = CvLuaPlayer::GetInstance(L, 2);
+
+	bool bResult = pkPlayer->GetBuilderTaskingAI()->IsMainRoutePlot(pPlot);
+	lua_pushboolean(L, bResult);
+	return 1;
+}
+
+//------------------------------------------------------------------------------
+//bool IsShortcutRouteTile(CvPlot* pPlot);
+int CvLuaPlot::lIsShortcutRoutePlan(lua_State* L)
+{
+	CvPlot* pPlot = GetInstance(L);
+	CvPlayer* pkPlayer = CvLuaPlayer::GetInstance(L, 2);
+
+	bool bResult = pkPlayer->GetBuilderTaskingAI()->IsShortcutRoutePlot(pPlot);
+	lua_pushboolean(L, bResult);
+	return 1;
+}
+
+//------------------------------------------------------------------------------
+//bool IsStrategicRouteTile(CvPlot* pPlot);
+int CvLuaPlot::lIsStrategicRoutePlan(lua_State* L)
+{
+	CvPlot* pPlot = GetInstance(L);
+	CvPlayer* pkPlayer = CvLuaPlayer::GetInstance(L, 2);
+
+	bool bResult = pkPlayer->GetBuilderTaskingAI()->IsStrategicRoutePlot(pPlot);
+	lua_pushboolean(L, bResult);
 	return 1;
 }
 
