@@ -1721,39 +1721,7 @@ vector<OptionWithScore<BuilderDirective>> CvBuilderTaskingAI::GetRouteDirectives
 
 		iValue /= 10;
 
-		m_bestRouteTypeAndValue[pPlot->GetPlotIndex()] = make_pair(eRoute, iValue);
-
-		// Reduce value if there are no adjacent routes (directive value is set to full value if a route is planned adjacent to this plot in CvHomelandAI)
-		bool bAnyAdjacentRoute = false;
-		CvPlot** pPlotsToCheck = GC.getMap().getNeighborsUnchecked(pPlot);
-		for (int iI = 0; iI < NUM_DIRECTION_TYPES; iI++)
-		{
-			CvPlot* pAdjacentPlot = pPlotsToCheck[iI];
-
-			if (!pAdjacentPlot)
-				continue;
-
-			if ((pAdjacentPlot->getRouteType() != NO_ROUTE && !pAdjacentPlot->IsRoutePillaged()) || m_pPlayer->GetSameRouteBenefitFromTrait(pAdjacentPlot, ROUTE_ROAD))
-			{
-				bAnyAdjacentRoute = true;
-				break;
-			}
-		}
-
-		if (!ShouldAnyBuilderConsiderPlot(pPlot))
-			continue;
-
-		if (!bAnyAdjacentRoute)
-			iValue /= 2;
-
-		if (pPlot->getRouteType() == eRoute && pPlot->IsRoutePillaged())
-		{
-			AddRepairRouteDirective(aDirectives, pPlot, eRoute, iValue);
-		}
-		else if (pPlot->getRouteType() != eRoute)
-		{
-			AddRouteDirective(aDirectives, pPlot, eRoute, iValue);
-		}
+		AddRouteOrRepairDirective(aDirectives, pPlot, eRoute, iValue);
 	}
 
 	return aDirectives;
@@ -1838,7 +1806,7 @@ vector<OptionWithScore<BuilderDirective>> CvBuilderTaskingAI::GetImprovementDire
 		}
 		if (pPlot->GetPlannedRouteState(m_pPlayer->GetID()) == ROAD_PLANNING_PRIORITY_CONSTRUCTION)
 		{
-			AddRouteDirective(aDirectives, pPlot, eBestRoute, 1000);
+			AddRouteOrRepairDirective(aDirectives, pPlot, eBestRoute, 1000);
 		}
 	}
 
@@ -2158,6 +2126,43 @@ void CvBuilderTaskingAI::AddRemoveRouteDirective(vector<OptionWithScore<BuilderD
 	}
 
 	aDirectives.push_back(OptionWithScore<BuilderDirective>(directive, iWeight));
+}
+
+void CvBuilderTaskingAI::AddRouteOrRepairDirective(vector<OptionWithScore<BuilderDirective>>& aDirectives, CvPlot* pPlot, RouteTypes eRoute, int iValue)
+{
+	m_bestRouteTypeAndValue[pPlot->GetPlotIndex()] = make_pair(eRoute, iValue);
+
+	// Reduce value if there are no adjacent routes (directive value is set to full value if a route is planned adjacent to this plot in CvHomelandAI)
+	bool bAnyAdjacentRoute = false;
+	CvPlot** pPlotsToCheck = GC.getMap().getNeighborsUnchecked(pPlot);
+	for (int iI = 0; iI < NUM_DIRECTION_TYPES; iI++)
+	{
+		CvPlot* pAdjacentPlot = pPlotsToCheck[iI];
+
+		if (!pAdjacentPlot)
+			continue;
+
+		if ((pAdjacentPlot->getRouteType() != NO_ROUTE && !pAdjacentPlot->IsRoutePillaged()) || m_pPlayer->GetSameRouteBenefitFromTrait(pAdjacentPlot, ROUTE_ROAD))
+		{
+			bAnyAdjacentRoute = true;
+			break;
+		}
+	}
+
+	if (!ShouldAnyBuilderConsiderPlot(pPlot))
+		return;
+
+	if (!bAnyAdjacentRoute)
+		iValue /= 2;
+
+	if (pPlot->getRouteType() == eRoute && pPlot->IsRoutePillaged())
+	{
+		AddRepairRouteDirective(aDirectives, pPlot, eRoute, iValue);
+	}
+	else if (pPlot->getRouteType() != eRoute)
+	{
+		AddRouteDirective(aDirectives, pPlot, eRoute, iValue);
+	}
 }
 
 /// Adds a directive if the unit can construct a road in the plot
