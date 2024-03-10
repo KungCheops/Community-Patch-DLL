@@ -1681,6 +1681,9 @@ vector<OptionWithScore<BuilderDirective>> CvBuilderTaskingAI::GetRouteDirectives
 		if (iValue <= 0)
 			continue;
 
+		if (!ShouldAnyBuilderConsiderPlot(pPlot))
+			continue;
+
 		// Upgrade roads to railroads if there is a village on this plot and it is a city connecting plot
 		if (eRoute == ROUTE_ROAD
 			&& pPlot->getOwner() == m_pPlayer->GetID()
@@ -2148,9 +2151,6 @@ void CvBuilderTaskingAI::AddRouteOrRepairDirective(vector<OptionWithScore<Builde
 			break;
 		}
 	}
-
-	if (!ShouldAnyBuilderConsiderPlot(pPlot))
-		return;
 
 	if (!bAnyAdjacentRoute)
 		iValue /= 2;
