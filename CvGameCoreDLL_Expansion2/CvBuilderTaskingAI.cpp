@@ -2044,6 +2044,9 @@ void CvBuilderTaskingAI::AddRemoveRouteDirective(vector<OptionWithScore<BuilderD
 	if (m_pPlayer->isOption(PLAYEROPTION_SAFE_AUTOMATION) && m_pPlayer->isHuman())
 		return;
 
+	if (pPlot->GetPlannedRouteState(m_pPlayer->GetID()) >= ROAD_PLANNING_INCLUDE)
+		return;
+
 	RouteTypes eExistingRoute = pPlot->getRouteType();
 
 	if (eExistingRoute == NO_ROUTE)

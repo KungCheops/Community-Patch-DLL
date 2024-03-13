@@ -2291,37 +2291,37 @@ int CvLuaPlot::lGetAirUnitsTooltip(lua_State* L)
 }
 
 //------------------------------------------------------------------------------
-//bool IsMainRouteTile(CvPlot* pPlot);
+//bool IsMainRouteTile(PlayerTypes ePlayer);
 int CvLuaPlot::lIsMainRoutePlan(lua_State* L)
 {
 	CvPlot* pPlot = GetInstance(L);
-	CvPlayer* pkPlayer = CvLuaPlayer::GetInstance(L, 2);
+	PlayerTypes ePlayer = (PlayerTypes)lua_tointeger(L, 2);
 
-	bool bResult = pkPlayer->GetBuilderTaskingAI()->IsMainRoutePlot(pPlot);
+	bool bResult = GET_PLAYER(ePlayer).GetBuilderTaskingAI()->IsMainRoutePlot(pPlot);
 	lua_pushboolean(L, bResult);
 	return 1;
 }
 
 //------------------------------------------------------------------------------
-//bool IsShortcutRouteTile(CvPlot* pPlot);
+//bool IsShortcutRouteTile(PlayerTypes ePlayer);
 int CvLuaPlot::lIsShortcutRoutePlan(lua_State* L)
 {
 	CvPlot* pPlot = GetInstance(L);
-	CvPlayer* pkPlayer = CvLuaPlayer::GetInstance(L, 2);
+	PlayerTypes ePlayer = (PlayerTypes)lua_tointeger(L, 2);
 
-	bool bResult = pkPlayer->GetBuilderTaskingAI()->IsShortcutRoutePlot(pPlot);
+	bool bResult = GET_PLAYER(ePlayer).GetBuilderTaskingAI()->IsShortcutRoutePlot(pPlot);
 	lua_pushboolean(L, bResult);
 	return 1;
 }
 
 //------------------------------------------------------------------------------
-//bool IsStrategicRouteTile(CvPlot* pPlot);
+//bool IsStrategicRouteTile(PlayerTypes ePlayer);
 int CvLuaPlot::lIsStrategicRoutePlan(lua_State* L)
 {
 	CvPlot* pPlot = GetInstance(L);
-	CvPlayer* pkPlayer = CvLuaPlayer::GetInstance(L, 2);
+	PlayerTypes ePlayer = (PlayerTypes)lua_tointeger(L, 2);
 
-	bool bResult = pkPlayer->GetBuilderTaskingAI()->IsStrategicRoutePlot(pPlot);
+	bool bResult = GET_PLAYER(ePlayer).GetBuilderTaskingAI()->IsStrategicRoutePlot(pPlot);
 	lua_pushboolean(L, bResult);
 	return 1;
 }
