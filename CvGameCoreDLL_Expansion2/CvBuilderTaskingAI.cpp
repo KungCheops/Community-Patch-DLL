@@ -3369,14 +3369,20 @@ pair<int,int> CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementTypes
 				if (!pAdjacentOwningCity || pAdjacentOwningCity->IsRazing())
 					continue;
 
-				int iNewAdjacentYield = 0;
+				int iNewAdjacentWorkedYield = 0;
+				int iNewAdjacentUnworkedYield = 0;
+
+				bool bWorkingAdjacent = pAdjacentOwningCity->GetCityCitizens()->IsWorkingPlot(pAdjacentPlot);
 
 				// How much extra yield we give to adjacent tiles with a certain terrain
 				if (pAdjacentPlot->getTerrainType() != NO_TERRAIN)
 				{
 					int iAdjacentTerrainYieldChange = pkImprovementInfo ? pkImprovementInfo->GetAdjacentTerrainYieldChanges(pAdjacentPlot->getTerrainType(), eYield) : 0;
 					if (iAdjacentTerrainYieldChange != 0)
-						iNewAdjacentYield += iAdjacentTerrainYieldChange;
+						if (bWorkingAdjacent)
+							iNewAdjacentWorkedYield += iAdjacentTerrainYieldChange;
+						else
+							iNewAdjacentUnworkedYield += iAdjacentTerrainYieldChange;
 				}
 
 				ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, sState);
@@ -3396,14 +3402,20 @@ pair<int,int> CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementTypes
 
 						int iDeltaTruncatedYield = (fCurrentAdjacentImprovementYield + fAdjacentImprovementYield).Truncate() - fCurrentAdjacentImprovementYield.Truncate();
 						if (iDeltaTruncatedYield != 0)
-							iNewAdjacentYield += iDeltaTruncatedYield;
+							if (bWorkingAdjacent)
+								iNewAdjacentWorkedYield += iDeltaTruncatedYield;
+							else
+								iNewAdjacentUnworkedYield += iDeltaTruncatedYield;
 
 						// How much extra yield an adjacent improvement will get if we create a resource
 						if (eResourceFromImprovement != NO_RESOURCE)
 						{
 							int iAdjacentResourceYieldChanges = pkAdjacentImprovementInfo->GetAdjacentResourceYieldChanges(eResourceFromImprovement, eYield);
 							if (iAdjacentResourceYieldChanges != 0)
-								iNewAdjacentYield += iAdjacentResourceYieldChanges;
+								if (bWorkingAdjacent)
+									iNewAdjacentWorkedYield += iAdjacentResourceYieldChanges;
+								else
+									iNewAdjacentUnworkedYield += iAdjacentResourceYieldChanges;
 						}
 
 						// How much extra yield an adjacent improvement will get if we create a feature (or keep the one that's here)
@@ -3412,15 +3424,19 @@ pair<int,int> CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementTypes
 							FeatureTypes eNewFeature = eFeatureFromImprovement != NO_FEATURE ? eFeatureFromImprovement : eFeature;
 							int iAdjacentFeatureYieldChanges = pkAdjacentImprovementInfo->GetAdjacentFeatureYieldChanges(eNewFeature, eYield);
 							if (iAdjacentFeatureYieldChanges != 0)
-								iNewAdjacentYield += iAdjacentFeatureYieldChanges;
+								if (bWorkingAdjacent)
+									iNewAdjacentWorkedYield += iAdjacentFeatureYieldChanges;
+								else
+									iNewAdjacentUnworkedYield += iAdjacentFeatureYieldChanges;
 						}
 					}
 				}
 
-				if (iNewAdjacentYield != 0)
+				if (iNewAdjacentWorkedYield != 0 || iNewAdjacentUnworkedYield != 0)
 				{
 					int iAdjacentCityYieldModifier = pAdjacentOwningCity ? GetYieldCityModifierTimes100(pAdjacentOwningCity, m_pPlayer, eYield) : 100;
-					iSecondaryScore += (iNewAdjacentYield * iYieldModifier * iAdjacentCityYieldModifier) / 100;
+					iSecondaryScore += (iNewAdjacentWorkedYield * iYieldModifier * iAdjacentCityYieldModifier) / 100;
+					iPotentialScore += (iNewAdjacentUnworkedYield * iYieldModifier * iAdjacentCityYieldModifier) / 100;
 				}
 			}
 		}
