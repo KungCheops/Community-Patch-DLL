@@ -473,6 +473,7 @@ void CvHomelandAI::AssignHomelandMoves()
 	//civilian and military
 	PlotHealMoves();
 
+	PlotOpportunisticSettlementMoves();
 	PlotExplorerMoves();
 
 	//military
@@ -511,8 +512,6 @@ void CvHomelandAI::AssignHomelandMoves()
 	PlotTreasureMoves();
 	PlotTradeUnitMoves();
 	PlotArchaeologistMoves();
-
-	PlotOpportunisticSettlementMoves();
 
 	ReviewUnassignedUnits();
 }
@@ -579,7 +578,7 @@ void CvHomelandAI::PlotFirstTurnSettlerMoves()
 		CvUnit* pUnit = m_pPlayer->getUnit(*it);
 		if (pUnit && !pUnit->isHuman())
 		{
-			if (pUnit->canFoundCity(NULL))
+			if (pUnit->AI_getUnitAIType() == UNITAI_SETTLE)
 			{
 				CvHomelandUnit unit;
 				unit.SetID(pUnit->GetID());
@@ -648,8 +647,16 @@ void CvHomelandAI::PlotHealMoves()
 		//this is very simple, we know there are no enemies around, else tactical AI would have kicked in
 		if(pUnit && !pUnit->isHuman() && pUnit->IsHurt() && !pUnit->IsCannotHeal())
 		{
-			//workers may get hurt a bit
-			if (pUnit->GetCurrHitPoints() > pUnit->GetMaxHitPoints() / 2)
+			//workers may get hurt a bit while working in dangerous terrain
+			if (pUnit->IsCivilianUnit())
+			{
+				bool bTakingDamage = pUnit->plot()->getTurnDamage(pUnit->ignoreTerrainDamage(), pUnit->ignoreFeatureDamage(), pUnit->extraTerrainDamage(), pUnit->extraFeatureDamage()) > 0;
+				if (bTakingDamage && pUnit->GetCurrHitPoints() > pUnit->GetMaxHitPoints() / 2)
+					continue;
+			}
+
+			// We are not particularly damaged
+			if (pUnit->getDamage() <= 7)
 				continue;
 
 			CvHomelandUnit unit;
@@ -857,76 +864,98 @@ void CvHomelandAI::PlotSentryNavalMoves()
 
 void CvHomelandAI::PlotOpportunisticSettlementMoves()
 {
-	ClearCurrentMoveUnits(AI_HOMELAND_MOVE_SECONDARY_SETTLER);
-	const char* szCiv = m_pPlayer->getCivilizationTypeKey();
+	if (!m_pPlayer->isMajorCiv() || m_pPlayer->isHuman())
+		return;
 
-	int iMinHappiness = gCustomMods.getCivOption(szCiv, "SECONDARY_SETTLERS_MIN_HAPPINESS", 5);
-	int iMinTurnsSinceLastCity = gCustomMods.getCivOption(szCiv, "SECONDARY_SETTLERS_MIN_TURNS_SINCE_LAST_CITY", 10);
+	ClearCurrentMoveUnits(AI_HOMELAND_MOVE_SECONDARY_SETTLER);
+
+	bool bPerformMoves = true;
+
+	if (!m_pPlayer->GetEconomicAI()->IsUsingStrategy((EconomicAIStrategyTypes)GC.getInfoTypeForString("ECONOMICAISTRATEGY_EXPAND_TO_OTHER_CONTINENTS")))
+		bPerformMoves = false;
 
 	int iCapitalX = 0;
 	int iCapitalY = 0;
-	if (m_pPlayer->getCapitalCity() != NULL)
+	if (m_pPlayer->getCapitalCity())
 	{
 		iCapitalX = m_pPlayer->getCapitalCity()->getX();
 		iCapitalY = m_pPlayer->getCapitalCity()->getY();
 	}
 	else
+		bPerformMoves = false;
+
+	if (m_pPlayer->IsEmpireUnhappy())
+		bPerformMoves = false;
+
+	if (!bPerformMoves)
 	{
+		// Unassign old settlers
+		for (list<int>::iterator it = m_CurrentTurnUnits.begin(); it != m_CurrentTurnUnits.end(); ++it)
+		{
+			CvUnit* pUnit = m_pPlayer->getUnit(*it);
+			UnitAITypes eUnitAI = pUnit->getUnitInfo().GetDefaultUnitAIType();
+			if (pUnit && eUnitAI != UNITAI_SETTLE && pUnit->AI_getUnitAIType() == UNITAI_SETTLE)
+			{
+				pUnit->AI_setUnitAIType(eUnitAI);
+			}
+		}
+
 		return;
 	}
 
-	if (m_pPlayer->GetHappiness() <= iMinHappiness)
-		return;
-	
-	if (m_pPlayer->GetTurnsSinceSettledLastCity() <= iMinTurnsSinceLastCity)
-		return;
-	
-	// Make a list of all combat units that can do this.
-	CHomelandUnitArray PossibleSettlerUnits;
-	for(list<int>::iterator it = m_CurrentTurnUnits.begin(); it != m_CurrentTurnUnits.end(); ++it) 
+	// First check if any unit is already assigned to settler AI
+	for (list<int>::iterator it = m_CurrentTurnUnits.begin(); it != m_CurrentTurnUnits.end(); ++it)
 	{
 		CvUnit* pUnit = m_pPlayer->getUnit(*it);
-		if (pUnit && pUnit->IsCombatUnit() && (pUnit->isFound() || pUnit->IsFoundAbroad() || pUnit->IsFoundLate() || pUnit->IsFoundMid()))
+		if (pUnit && pUnit->IsCombatUnit() && pUnit->AI_getUnitAIType() == UNITAI_SETTLE)
 		{
-			//fake this, the distance check is irrelevant here
-			ReachablePlots turnsFromMuster;
-			turnsFromMuster.insertWithIndex( SMovePlot(pUnit->plot()->GetPlotIndex()) );
-
-			vector<pair<size_t,CvFormationSlotEntry>> availableSlots(1,make_pair(0,CvFormationSlotEntry()));
-			if(OperationalAIHelpers::IsUnitSuitableForRecruitment(pUnit,turnsFromMuster,NULL,false,false,availableSlots)>=0)
+			CvHomelandUnit unit;
+			unit.SetID(pUnit->GetID());
+			m_CurrentMoveUnits.push_back(unit);
+		}
+	}
+	
+	if (m_CurrentMoveUnits.empty())
+	{
+		// Make a list of all combat units that can do this.
+		for (list<int>::iterator it = m_CurrentTurnUnits.begin(); it != m_CurrentTurnUnits.end(); ++it)
+		{
+			CvUnit* pUnit = m_pPlayer->getUnit(*it);
+			if (pUnit && pUnit->IsCombatUnit() && (pUnit->isFound() || pUnit->IsFoundAbroad() || pUnit->IsFoundLate() || pUnit->IsFoundMid()))
 			{
-				CvHomelandUnit unit;
-				unit.SetID(pUnit->GetID());
-				unit.SetAuxIntData(plotDistance(pUnit->getX(), pUnit->getY(), iCapitalX, iCapitalY));
-				PossibleSettlerUnits.push_back(unit);
-				if(GC.getLogging() && GC.getAILogging())
+				int iUnitAge = GC.getGame().getGameTurn() - pUnit->getGameTurnCreated();
+				if ((pUnit->getExperienceTimes100() < 1500 || iUnitAge < 3) && pUnit->canUseForAIOperation())
 				{
-					CvString strLogString;
-					CvString strTemp;
-					strLogString.Format("%s (%d): found secondary settler, X: %d, Y: %d", strTemp.GetCString(), pUnit->GetID(), pUnit->getX(), pUnit->getY());
-					LogHomelandMessage(strLogString);
+					CvHomelandUnit unit;
+					unit.SetID(pUnit->GetID());
+					unit.SetAuxIntData(plotDistance(pUnit->getX(), pUnit->getY(), iCapitalX, iCapitalY));
+					m_CurrentMoveUnits.push_back(unit);
+					if (GC.getLogging() && GC.getAILogging())
+					{
+						CvString strLogString;
+						strLogString.Format("%s (%d): found secondary settler, X: %d, Y: %d", pUnit->getName().GetCString(), pUnit->GetID(), pUnit->getX(), pUnit->getY());
+						LogHomelandMessage(strLogString);
+					}
 				}
 			}
 		}
 	}
 	
 	// Sort them by proximity to the capital
-	std::stable_sort(PossibleSettlerUnits.begin(), PossibleSettlerUnits.end(), HomelandAIHelpers::CvHomelandUnitAuxIntSort);
+	std::stable_sort(m_CurrentMoveUnits.begin(), m_CurrentMoveUnits.end(), HomelandAIHelpers::CvHomelandUnitAuxIntSort);
 	
-	if (PossibleSettlerUnits.size() > 0) 
+	if (m_CurrentMoveUnits.size() > 0)
 	{
-		CHomelandUnitArray::iterator settlerUnitIt;
-		for (settlerUnitIt = PossibleSettlerUnits.begin(); settlerUnitIt != PossibleSettlerUnits.end(); ++settlerUnitIt) 
+		for (CHomelandUnitArray::iterator it = m_CurrentMoveUnits.begin(); it != m_CurrentMoveUnits.end(); ++it)
 		{
-			CvUnit* pUnit = m_pPlayer->getUnit(settlerUnitIt->GetID());
+			CvUnit* pUnit = m_pPlayer->getUnit(it->GetID());
 			if(pUnit)
 			{
-				pUnit->AI_setUnitAIType(UNITAI_SETTLE);
-				break;
+				if (ExecuteOpportunisticSettlementMoves(pUnit))
+					break;
 			}
 		}
 	}
-	PossibleSettlerUnits.clear();
 }
 
 //so that workers know where to build improvements
@@ -2466,8 +2495,10 @@ bool CvHomelandAI::ExecuteExplorerMoves(CvUnit* pUnit)
 		if (!IsValidExplorerEndTurnPlot(pUnit, pEvalPlot))
 			continue;
 
+		bool bCanPopGoody = MOD_BALANCE_CORE_GOODY_RECON_ONLY ? pUnit->getUnitCombatType() == (UnitCombatTypes)GC.getInfoTypeForString("UNITCOMBAT_RECON", true) || pUnit->GetGainsXPFromScouting() : true;
+
 		//get contributions from yet-to-be revealed plots (and goodies)
-		int iScoreBase = EconomicAIHelpers::ScoreExplorePlot(pEvalPlot, m_pPlayer, pUnit->getDomainType(), pUnit->isEmbarked());
+		int iScoreBase = EconomicAIHelpers::ScoreExplorePlot(pEvalPlot, m_pPlayer, pUnit->getDomainType(), pUnit->isEmbarked(), bCanPopGoody);
 		if(iScoreBase > 0)
 		{
 			int iScoreBonus = pEvalPlot->GetExplorationBonus(m_pPlayer, pUnit);
@@ -2513,6 +2544,30 @@ bool CvHomelandAI::ExecuteExplorerMoves(CvUnit* pUnit)
 
 				pBestPlot = pEvalPlot;
 				iBestPlotScore = iTotalScore;
+			}
+		}
+	}
+
+	//step 0: check if this unit is outdated and should go home to upgrade
+	if (!m_pPlayer->isHuman() && pUnit->getDomainType() == DOMAIN_LAND && !pUnit->CanStayInOcean() && pUnit->IsGainsXPFromScouting() && GET_TEAM(m_pPlayer->getTeam()).CanBuildOceanCrossingUnit())
+	{
+		if (pUnit->plot()->getOwner() == m_pPlayer->GetID())
+			return true;
+
+		int iFlags = iMoveFlags | CvUnit::MOVEFLAG_APPROX_TARGET_RING2 | CvUnit::MOVEFLAG_APPROX_TARGET_NATIVE_DOMAIN;
+		CvCity* pClosestCity = m_pPlayer->GetClosestCityByPathLength(pUnit->plot());
+		if (pClosestCity && pUnit->GeneratePath(pClosestCity->plot(), iFlags, 23))
+		{
+			if (MoveToTargetButDontEndTurn(pUnit, pClosestCity->plot(), iFlags))
+			{
+				if (GC.getLogging() && GC.getAILogging())
+				{
+					CvString strLogString;
+					CvString strTemp = pUnit->getUnitInfo().GetDescription();
+					strLogString.Format("%s (%d) at (%d, %d) moving home to upgrade", strTemp.GetCString(), pUnit->GetID(), pUnit->getX(), pUnit->getY());
+					LogHomelandMessage(strLogString);
+				}
+				return !pUnit->canMove();
 			}
 		}
 	}
@@ -2625,10 +2680,65 @@ bool CvHomelandAI::ExecuteExplorerMoves(CvUnit* pUnit)
 	if (pUnit->isHuman())
 		pUnit->SetAutomateType(NO_AUTOMATE);
 
-	//in case it was non-native scout, reset the unit AI
-	pUnit->AI_setUnitAIType(pUnit->getUnitInfo().GetDefaultUnitAIType());
-	ExecuteMovesToSafestPlot(pUnit);
+	if (!pBestPlot)
+	{
+		// Take this unit off exploration duty since we couldn't find any target plot to explore
+		UnitAITypes eUnitAI = pUnit->getUnitInfo().GetDefaultUnitAIType();
+		eUnitAI = eUnitAI != UNITAI_EXPLORE ? eUnitAI : UNITAI_FAST_ATTACK;
+		pUnit->AI_setUnitAIType(eUnitAI);
+	}
+
 	return true; //nothing left to do
+}
+
+bool CvHomelandAI::ExecuteOpportunisticSettlementMoves(CvUnit* pUnit)
+{
+	CvPlot* pTargetPlot = m_pPlayer->GetBestSettlePlot(pUnit);
+	if (!pTargetPlot)
+		return false;
+
+	int iNewQ = m_pPlayer->GetSettlePlotQualityMeasure(pTargetPlot);
+	if (iNewQ < m_pPlayer->GetMinAcceptableSettleQuality() && m_pPlayer->getNumCities() > 0)
+		return false;
+
+	// Remember that this is a settler
+	pUnit->AI_setUnitAIType(UNITAI_SETTLE);
+
+	if (pUnit->plot() != pTargetPlot)
+	{
+		int iFlags = CvUnit::MOVEFLAG_NO_ENEMY_TERRITORY | CvUnit::MOVEFLAG_ABORT_IF_NEW_ENEMY_REVEALED;
+		ExecuteMoveToTarget(pUnit, pTargetPlot, iFlags);
+	}
+
+	if (pUnit->canMove())
+	{
+		if (pUnit->plot() == pTargetPlot && pUnit->canFoundCity(pTargetPlot))
+		{
+			pUnit->PushMission(CvTypes::getMISSION_FOUND());
+
+			if (GC.getLogging() && GC.getAILogging())
+			{
+				CvCity* pCity = pTargetPlot->getPlotCity();
+				if (pCity)
+				{
+					CvString strMsg;
+					strMsg.Format("City founded (%s) at (%d:%d), plot value %d, q%d", pCity->getName().c_str(),
+						pTargetPlot->getX(), pTargetPlot->getY(), pTargetPlot->getFoundValue(m_pPlayer->GetID()), m_pPlayer->GetSettlePlotQualityMeasure(pTargetPlot));
+					LogHomelandMessage(strMsg);
+				}
+			}
+		}
+		else
+		{
+			ExecuteMovesToSafestPlot(pUnit);
+		}
+	}
+	else
+	{
+		UnitProcessed(pUnit->GetID());
+	}
+
+	return true;
 }
 
 // Higher weight means better directive

@@ -260,7 +260,7 @@ int CvUnitProductionAI::CheckUnitBuildSanity(UnitTypes eUnit, bool bForOperation
 	}
 
 
-	int iNumExplorers = kPlayer.GetNumUnitsWithUnitAI(UNITAI_EXPLORE, true);
+	int iNumExplorers = kPlayer.GetNumUnitsWithUnitAI(UNITAI_EXPLORE, true, true);
 	int iNumLandUnits = kPlayer.getNumMilitaryLandUnits() + kPlayer.GetNumUnitsInProduction(DOMAIN_LAND, true);
 	int iNumSeaUnits = kPlayer.getNumMilitarySeaUnits() + kPlayer.GetNumUnitsInProduction(DOMAIN_SEA, true);
 
@@ -551,6 +551,10 @@ int CvUnitProductionAI::CheckUnitBuildSanity(UnitTypes eUnit, bool bForOperation
 		{
 			if(bCombat)
 			{
+				// Are we an actual port city?
+				if (!m_pCity->IsConnectedToOcean())
+					return SR_USELESS;
+
 				int iCurrent = iNumSeaUnits;
 				int iDesired = kPlayer.GetMilitaryAI()->GetRecommendNavySize();
 				int iValue = iDesired - iCurrent;
@@ -1161,35 +1165,61 @@ int CvUnitProductionAI::CheckUnitBuildSanity(UnitTypes eUnit, bool bForOperation
 		}
 		else
 		{
-			int iUnimprovedAround = 0;
-			for (int iResourceLoop = 0; iResourceLoop < GC.getNumResourceInfos(); iResourceLoop++)
-			{
-				ResourceTypes eResourceLoop = (ResourceTypes)iResourceLoop;
-				if (eResourceLoop != NO_RESOURCE)
-				{
-					const CvResourceInfo* pkResourceInfo = GC.getResourceInfo(eResourceLoop);
-					if (pkResourceInfo != NULL && pkResourceInfo->isTerrain(TERRAIN_COAST))
-					{
-						if (!kPlayer.NeedWorkboatToImproveResource(eResourceLoop))
-							continue;
+			CvPlayer& kPlayer = GET_PLAYER(m_pCity->getOwner());
 
-						iUnimprovedAround += m_pCity->GetNumResourceLocal(eResourceLoop);
+			int iWorkBoatsNeeded = 0;
+
+			SPathFinderUserData data(m_pCity->getOwner(), PT_WORKER_SEA_UNIT_SAFE, 12);
+			ReachablePlots allReachablePlots = GC.GetStepFinder().GetPlotsInReach(m_pCity->getX(), m_pCity->getY(), data);
+
+			for (ReachablePlots::iterator it = allReachablePlots.begin(); it != allReachablePlots.end(); ++it)
+			{
+				CvPlot* pLoopPlot = GC.getMap().plotByIndexUnchecked(it->iPlotIndex);
+
+				int iNumUnits = pLoopPlot->getNumUnits();
+				for (int iI = 0; iI < iNumUnits; ++iI)
+				{
+					CvUnit* pLoopPlotUnit = pLoopPlot->getUnitByIndex(iI);
+					// Check how many units are in the vicinity
+					if (pLoopPlotUnit->AI_getUnitAIType() == UNITAI_WORKER_SEA)
+						iWorkBoatsNeeded--;
+				}
+
+				CvCity* pLoopPlotCity = pLoopPlot->getPlotCity();
+				if (pLoopPlotCity && pLoopPlotCity != m_pCity && pLoopPlotCity->isProductionUnit())
+				{
+					CvUnitEntry* pkUnitEntry = GC.getUnitInfo(pLoopPlotCity->getProductionUnit());
+					if (pkUnitEntry)
+					{
+						if (pkUnitEntry->GetDefaultUnitAIType() == UNITAI_WORKER_SEA)
+						{
+							iWorkBoatsNeeded--;
+						}
 					}
 				}
-			}
-			iBonus += (1000 * iUnimprovedAround * (m_pCity->getPopulation() + kPlayer.GetCurrentEra()));
 
-			//additional loop to help coastal and non-coastal cities nearby.
-			int iCityLoop = 0;
-			for (CvCity* pLoopCity = kPlayer.firstCity(&iCityLoop); pLoopCity != NULL; pLoopCity = kPlayer.nextCity(&iCityLoop))
-			{
-				if (pLoopCity->HasSharedAreaWith(m_pCity,true,false) && m_pCity != pLoopCity)
-				{
-					static AICityStrategyTypes eNeedNavalWorker = (AICityStrategyTypes)GC.getInfoTypeForString("AICITYSTRATEGY_NEED_NAVAL_TILE_IMPROVEMENT");
-					if (eNeedNavalWorker != NO_AICITYSTRATEGY && pLoopCity->GetCityStrategyAI()->IsUsingCityStrategy(eNeedNavalWorker))
-						iBonus += (250 * (pLoopCity->getPopulation() + kPlayer.GetCurrentEra()));
-				}
+				if (it->iMovesLeft <= 6)
+					continue;
+
+				if (pLoopPlot->getImprovementType() != NO_IMPROVEMENT)
+					continue;
+
+				if (pLoopPlot->getOwner() != m_pCity->getOwner())
+					continue;
+
+				ResourceTypes eResource = pLoopPlot->getResourceType(kPlayer.getTeam());
+
+				if (eResource == NO_RESOURCE)
+					continue;
+
+				if (!kPlayer.NeedWorkboatToImproveResource(eResource))
+					continue;
+
+				iWorkBoatsNeeded++;
 			}
+
+			if (iWorkBoatsNeeded > 0)
+				iBonus += (1000 * iWorkBoatsNeeded * (m_pCity->getPopulation() + kPlayer.GetCurrentEra()));
 		}
 	}
 	//Make sure we need workers in this city.
@@ -1333,7 +1363,7 @@ int CvUnitProductionAI::CheckUnitBuildSanity(UnitTypes eUnit, bool bForOperation
 		//Uniques? They're generally good enough to spam.
 		if(kPlayer.getCivilizationInfo().isCivilizationUnitOverridden(pkUnitEntry->GetUnitClassType()))
 		{
-			iBonus += 100;
+			iBonus += 250;
 
 			if (pkUnitEntry->GetUnitCombatType() == (UnitCombatTypes)GC.getInfoTypeForString("UNITCOMBAT_RECON", true)) // reduce the bonus for recons, they aren't that spammable
 				iBonus -= 80;
