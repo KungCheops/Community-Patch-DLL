@@ -2156,7 +2156,7 @@ CvUnit* SwitchEscort(CvUnit* pCivilian, CvPlot* pNewEscortPlot, CvUnit* pEscort,
 		int iSlot = pThisArmy->RemoveUnit(pEscort->GetID(),true);
 		if (iSlot>=0)
 		{
-			pThisArmy->AddUnit(pPlotDefender->GetID(), iSlot, true);
+			pThisArmy->AddUnit(pPlotDefender->GetID(), iSlot, pThisArmy->GetSlotInfo(iSlot).m_requiredSlot);
 			if (GC.getLogging() && GC.getAILogging())
 			{
 				CvString strLogString;
@@ -2442,7 +2442,7 @@ void CvTacticalAI::PlotArmyMovesEscort(CvArmyAI* pThisArmy)
 						CvUnit* pDefender = pTurnTarget->getBestDefender(m_pPlayer->GetID());
 						if (pDefender && pDefender->getArmyID() == -1 && pDefender->getDomainType() == pCivilian->getDomainType())
 						{
-							pThisArmy->AddUnit(pDefender->GetID(), 1, true);
+							pThisArmy->AddUnit(pDefender->GetID(), 1, pThisArmy->GetSlotInfo(1).m_requiredSlot);
 							if (GC.getLogging() && GC.getAILogging())
 							{
 								CvString strLogString;
@@ -7537,7 +7537,7 @@ bool ScoreAttackDamage(const CvTacticalPlot* tactPlot, const CvUnit* pUnit, cons
 	result->iCityDamage = iCityDamageDealt;
 
 	//for melee units we check if the damage received is worth it ...
-	if (iDamageReceived > 0)
+	if (iDamageReceived > 0 && gSafePlotCount[pUnit->GetID()] > 0)
 	{
 		float fAggFactor = /*100*/ GD_INT_GET(COMBAT_AI_OFFENSE_DAMAGEWEIGHT) / 100.f;
 		switch (eAggLvl)
@@ -8060,7 +8060,7 @@ static STacticalAssignment* ScorePlotForCombatUnitMove(const SUnitStats& unit, c
 			iPlotScore += 3;
 
 		// if we are not in a good spot, try moving
-		if (iPlotScore <= 6 && pTestPlot == pUnit->plot())
+		if (iPlotScore <= 6 && pTestPlot == pUnit->plot() && pUnit->getDamage() + unit.iSelfDamage < 10)
 			iPlotScore -= 2;
 
 		// Move melee units in to capture cities
@@ -9000,6 +9000,8 @@ void CvTacticalPosition::getPreferredAssignmentsForUnit(const SUnitStats& unit, 
 
 	CvTacticalPosition tempPosition;
 	int iOldPlotDistanceToTarget = bTargetDistanceRelevant ? TacticalAIHelpers::GetPlotDistanceToTarget(unit.iPlotIndex, pUnit->getDomainType()) : 0;
+	if (iOldPlotDistanceToTarget < TACTICAL_COMBAT_MAX_TARGET_DISTANCE)
+		iOldPlotDistanceToTarget = TACTICAL_COMBAT_MAX_TARGET_DISTANCE;
 
 	//check moves and melee attacks first
 	const ReachablePlots& reachablePlots = getReachablePlotsForUnit(unit);
@@ -9153,10 +9155,12 @@ void CvTacticalPosition::getPreferredAssignmentsForUnit(const SUnitStats& unit, 
 
 			int iMoveTowardsTargetScore = 0;
 
-			if (getNumEnemies() == 0 && bTargetDistanceRelevant)
+			if (bTargetDistanceRelevant)
 			{
 				// Try to move towards the target
 				int iNewPlotDistanceToTarget = TacticalAIHelpers::GetPlotDistanceToTarget(it->iPlotIndex, pUnit->getDomainType());
+				if (iNewPlotDistanceToTarget < TACTICAL_COMBAT_MAX_TARGET_DISTANCE)
+					iNewPlotDistanceToTarget = TACTICAL_COMBAT_MAX_TARGET_DISTANCE;
 				iMoveTowardsTargetScore = (iOldPlotDistanceToTarget - iNewPlotDistanceToTarget) * 40;
 				if (iNewPlotDistanceToTarget > iOldPlotDistanceToTarget)
 					continue;
@@ -9819,17 +9823,18 @@ bool CvTacticalPosition::isKillOrImprovedPosition() const
 		//note that RESTARTS are ignored here ... just hope that we still find good moves after the restart
 	}
 
+	bool bMovingTowardsTarget = (bTargetDistanceRelevant && iAfter < iBefore);
 	if (haveEnemies())
 	{
 		//staying in place and bombarding is fine!
 		//staying in place and healing is also progress TODO: should we check whether we are healing more than we are taking damage?
 		//note that retreating a damaged unit counts as positive because it should be MS_THIRDLINE
-		return (iNegative < iPositive) || (iNegative == iPositive && (iAttacksNoMove > 0 || iHealingUnits > 1));
+		return (iNegative < iPositive) || (iNegative == iPositive && (bMovingTowardsTarget || iAttacksNoMove > 0 || iHealingUnits > 1 || (iHealingUnits == root->GetNumAvailableUnits())));
 	}
 	else
 	{
 		//did we get closer to the target plot?
-		return ((bTargetDistanceRelevant && iAfter < iBefore) || iHealingUnits > 0);
+		return bMovingTowardsTarget || iHealingUnits > 0;
 	}
 }
 
@@ -11302,7 +11307,7 @@ void CvSupportPosition::getPreferredAssignmentsForUnit(const SUnitStats& unit, i
 
 		int iMoveTowardsTargetScore = 0;
 
-		if (GetFinalTacticalPosition()->getNumEnemies() == 0 && GetFinalTacticalPosition()->IsTargetToDistanceRelevant())
+		if (GetFinalTacticalPosition()->IsTargetToDistanceRelevant())
 		{
 			// Try to move towards the target
 			int iNewPlotDistanceToTarget = TacticalAIHelpers::GetPlotDistanceToTarget(it->iPlotIndex, pUnit->getDomainType());
