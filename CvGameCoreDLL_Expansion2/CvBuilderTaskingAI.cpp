@@ -137,6 +137,57 @@ FDataStream& operator<<(FDataStream& stream, const CvBuilderTaskingAI& builderTa
 	return stream;
 }
 
+FDataStream& operator<<(FDataStream& stream, const PlotBuildScore& score)
+{
+	stream << score.m_iScore;
+	stream << score.m_iPotentialScore;
+	stream << score.m_iUnusedYieldScore;
+	stream << score.m_iScorePenalty;
+
+	return stream;
+}
+
+FDataStream& operator>>(FDataStream& stream, PlotBuildScore& score)
+{
+	stream >> score.m_iScore;
+	stream >> score.m_iPotentialScore;
+	stream >> score.m_iUnusedYieldScore;
+	stream >> score.m_iScorePenalty;
+
+	return stream;
+}
+
+FDataStream& operator<<(FDataStream& stream, const SBuilderDirective& directive)
+{
+	stream << static_cast<int>(directive.m_eDirectiveType);
+	stream << directive.m_eBuild;
+	stream << directive.m_eResource;
+	stream << directive.m_bIsGreatPerson;
+	stream << directive.m_bCanBuild;
+	stream << directive.m_sX;
+	stream << directive.m_sY;
+	stream << directive.m_plotBuildScore;
+
+	return stream;
+}
+
+FDataStream& operator>>(FDataStream& stream, SBuilderDirective& directive)
+{
+	int iDirectiveType;
+	stream >> iDirectiveType;
+
+	directive.m_eDirectiveType = static_cast<SBuilderDirective::BuilderDirectiveType>(iDirectiveType);
+	stream >> directive.m_eBuild;
+	stream >> directive.m_eResource;
+	stream >> directive.m_bIsGreatPerson;
+	stream >> directive.m_bCanBuild;
+	stream >> directive.m_sX;
+	stream >> directive.m_sY;
+	stream >> directive.m_plotBuildScore;
+
+	return stream;
+}
+
 /// Update
 void CvBuilderTaskingAI::Update(void)
 {
@@ -1245,12 +1296,12 @@ void CvBuilderTaskingAI::UpdateCanalPlots()
 	}
 }
 
-vector<BuilderDirective> CvBuilderTaskingAI::GetDirectives()
+vector<SBuilderDirective> CvBuilderTaskingAI::GetDirectives()
 {
 	return m_directives;
 }
 
-BuilderDirective CvBuilderTaskingAI::GetAssignedDirective(CvUnit* pUnit)
+SBuilderDirective CvBuilderTaskingAI::GetAssignedDirective(CvUnit* pUnit)
 {
 	int iUnitID = pUnit->GetID();
 
@@ -1259,15 +1310,15 @@ BuilderDirective CvBuilderTaskingAI::GetAssignedDirective(CvUnit* pUnit)
 		return m_assignedDirectives[iUnitID];
 	}
 
-	return BuilderDirective();
+	return SBuilderDirective();
 }
 
-void CvBuilderTaskingAI::SetAssignedDirective(CvUnit* pUnit, BuilderDirective eDirective)
+void CvBuilderTaskingAI::SetAssignedDirective(CvUnit* pUnit, SBuilderDirective eDirective)
 {
 	m_assignedDirectives[pUnit->GetID()] = eDirective;
 }
 
-bool CvBuilderTaskingAI::CanUnitPerformDirective(CvUnit* pUnit, BuilderDirective eDirective, bool bTestEra)
+bool CvBuilderTaskingAI::CanUnitPerformDirective(CvUnit* pUnit, SBuilderDirective eDirective, bool bTestEra)
 {
 	if (eDirective.m_eBuild == NO_BUILD)
 		return false;
@@ -1311,23 +1362,23 @@ int CvBuilderTaskingAI::GetTurnsToBuild(const CvUnit* pUnit, BuildTypes eBuild, 
 }
 
 //returns true if sucessful, false otherwise
-bool CvBuilderTaskingAI::ExecuteWorkerMove(CvUnit* pUnit, BuilderDirective aDirective)
+bool CvBuilderTaskingAI::ExecuteWorkerMove(CvUnit* pUnit, SBuilderDirective aDirective)
 {
 	bool bSuccessful = false;
 
-	if (aDirective.m_eDirectiveType != BuilderDirective::NUM_DIRECTIVES)
+	if (aDirective.m_eDirectiveType != SBuilderDirective::NUM_DIRECTIVES)
 	{
 		switch (aDirective.m_eDirectiveType)
 		{
-		case BuilderDirective::KEEP_IMPROVEMENT:
+		case SBuilderDirective::KEEP_IMPROVEMENT:
 			UNREACHABLE();
-		case BuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE:
-		case BuilderDirective::BUILD_IMPROVEMENT:
-		case BuilderDirective::REPAIR_IMPROVEMENT:
-		case BuilderDirective::REPAIR_ROUTE:
-		case BuilderDirective::BUILD_ROUTE:
-		case BuilderDirective::REMOVE_FEATURE:
-		case BuilderDirective::REMOVE_ROAD:
+		case SBuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE:
+		case SBuilderDirective::BUILD_IMPROVEMENT:
+		case SBuilderDirective::REPAIR_IMPROVEMENT:
+		case SBuilderDirective::REPAIR_ROUTE:
+		case SBuilderDirective::BUILD_ROUTE:
+		case SBuilderDirective::REMOVE_FEATURE:
+		case SBuilderDirective::REMOVE_ROAD:
 		{
 			CvPlot* pPlot = GC.getMap().plot(aDirective.m_sX, aDirective.m_sY);
 			MissionTypes eMission = CvTypes::getMISSION_MOVE_TO();
@@ -1358,50 +1409,50 @@ bool CvBuilderTaskingAI::ExecuteWorkerMove(CvUnit* pUnit, BuilderDirective aDire
 
 				switch (aDirective.m_eDirectiveType)
 				{
-				case BuilderDirective::KEEP_IMPROVEMENT:
+				case SBuilderDirective::KEEP_IMPROVEMENT:
 					UNREACHABLE();
-				case BuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE:
+				case SBuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE:
 					strLog += "On resource,";
 					break;
-				case BuilderDirective::BUILD_IMPROVEMENT:
+				case SBuilderDirective::BUILD_IMPROVEMENT:
 					strLog += "On plot,";
 					break;
-				case BuilderDirective::REPAIR_IMPROVEMENT:
+				case SBuilderDirective::REPAIR_IMPROVEMENT:
 					strLog += "Repairing,";
 					break;
-				case BuilderDirective::REPAIR_ROUTE:
+				case SBuilderDirective::REPAIR_ROUTE:
 					strLog += "Repairing route,";
 					break;
-				case BuilderDirective::BUILD_ROUTE:
+				case SBuilderDirective::BUILD_ROUTE:
 					strLog += "Building route,";
 					break;
-				case BuilderDirective::REMOVE_FEATURE:
+				case SBuilderDirective::REMOVE_FEATURE:
 					strLog += "Removing feature for production,";
 					break;
-				case BuilderDirective::REMOVE_ROAD:
+				case SBuilderDirective::REMOVE_ROAD:
 					strLog += "Removing road,";
 					break;
 				}
 
 				if (eMission == CvTypes::getMISSION_BUILD())
 				{
-					if (aDirective.m_eDirectiveType == BuilderDirective::REPAIR_IMPROVEMENT)
+					if (aDirective.m_eDirectiveType == SBuilderDirective::REPAIR_IMPROVEMENT)
 					{
 						strLog += "Repairing improvement";
 					}
-					else if (aDirective.m_eDirectiveType == BuilderDirective::REPAIR_ROUTE)
+					else if (aDirective.m_eDirectiveType == SBuilderDirective::REPAIR_ROUTE)
 					{
 						strLog += "Repairing route";
 					}
-					else if (aDirective.m_eDirectiveType == BuilderDirective::BUILD_ROUTE)
+					else if (aDirective.m_eDirectiveType == SBuilderDirective::BUILD_ROUTE)
 					{
 						strLog += "Building route,";
 					}
-					else if (aDirective.m_eDirectiveType == BuilderDirective::BUILD_IMPROVEMENT || aDirective.m_eDirectiveType == BuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE)
+					else if (aDirective.m_eDirectiveType == SBuilderDirective::BUILD_IMPROVEMENT || aDirective.m_eDirectiveType == SBuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE)
 					{
 						strLog += "Building improvement,";
 					}
-					else if (aDirective.m_eDirectiveType == BuilderDirective::REMOVE_FEATURE)
+					else if (aDirective.m_eDirectiveType == SBuilderDirective::REMOVE_FEATURE)
 					{
 						strLog += "Removing feature for production,";
 					}
@@ -1615,8 +1666,8 @@ void CvBuilderTaskingAI::UpdateRoutePlots(void)
 /// Use the flavor settings to determine what to do
 void CvBuilderTaskingAI::UpdateImprovementPlots()
 {
-	vector<OptionWithScore<BuilderDirective>> allDirectives(GetRouteDirectives());
-	vector<OptionWithScore<BuilderDirective>> improvementDirectives = GetImprovementDirectives();
+	vector<OptionWithScore<SBuilderDirective>> allDirectives(GetRouteDirectives());
+	vector<OptionWithScore<SBuilderDirective>> improvementDirectives = GetImprovementDirectives();
 	allDirectives.insert(allDirectives.end(), improvementDirectives.begin(), improvementDirectives.end());
 
 	std::stable_sort(allDirectives.begin(), allDirectives.end());
@@ -1624,13 +1675,13 @@ void CvBuilderTaskingAI::UpdateImprovementPlots()
 
 	m_directives.clear();
 	m_assignedDirectives.clear();
-	for (vector<OptionWithScore<BuilderDirective>>::iterator it = allDirectives.begin(); it != allDirectives.end(); ++it)
+	for (vector<OptionWithScore<SBuilderDirective>>::iterator it = allDirectives.begin(); it != allDirectives.end(); ++it)
 		m_directives.push_back(it->option);
 }
 
-vector<OptionWithScore<BuilderDirective>> CvBuilderTaskingAI::GetRouteDirectives()
+vector<OptionWithScore<SBuilderDirective>> CvBuilderTaskingAI::GetRouteDirectives()
 {
-	vector<OptionWithScore<BuilderDirective>> aDirectives;
+	vector<OptionWithScore<SBuilderDirective>> aDirectives;
 
 	map<PlotPair, map<pair<RouteTypes, bool>, pair<int, int>>> plannedRouteTypeValues;
 
@@ -1824,13 +1875,13 @@ static ImprovementTypes GetImprovementFromBuild(BuildTypes eBuild)
 	return eImprovement;
 }
 
-static vector<OptionWithScore<BuilderDirective>> FilterNonOptimalNoTwoAdjacentImprovements(const vector<OptionWithScore<BuilderDirective>>& aDirectives, bool bIgnoreNoTwoAdjacent)
+static vector<OptionWithScore<SBuilderDirective>> FilterNonOptimalNoTwoAdjacentImprovements(const vector<OptionWithScore<SBuilderDirective>>& aDirectives, bool bIgnoreNoTwoAdjacent)
 {
-	vector<OptionWithScore<BuilderDirective>> aNewDirectives;
+	vector<OptionWithScore<SBuilderDirective>> aNewDirectives;
 
-	for (vector<OptionWithScore<BuilderDirective>>::const_iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
+	for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
 	{
-		BuilderDirective eDirective = it->option;
+		SBuilderDirective eDirective = it->option;
 
 		BuildTypes eBuild = eDirective.m_eBuild;
 		if (eBuild == NO_BUILD)
@@ -1854,9 +1905,9 @@ static vector<OptionWithScore<BuilderDirective>> FilterNonOptimalNoTwoAdjacentIm
 		int iPotentialScore = eDirective.m_plotBuildScore.GetPriorityScore();
 
 		bool bInclude = true;
-		for (vector<OptionWithScore<BuilderDirective>>::const_iterator it2 = aDirectives.begin(); it2 != aDirectives.end(); ++it2)
+		for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it2 = aDirectives.begin(); it2 != aDirectives.end(); ++it2)
 		{
-			BuilderDirective eOtherDirective = it2->option;
+			SBuilderDirective eOtherDirective = it2->option;
 
 			if (eDirective == eOtherDirective)
 				continue;
@@ -1892,13 +1943,13 @@ static vector<OptionWithScore<BuilderDirective>> FilterNonOptimalNoTwoAdjacentIm
 	return aNewDirectives;
 }
 
-static vector<OptionWithScore<BuilderDirective>> FilterNoTwoAdjacentDirectives(const vector<OptionWithScore<BuilderDirective>>& aDirectives, PlayerTypes ePlayer)
+static vector<OptionWithScore<SBuilderDirective>> FilterNoTwoAdjacentDirectives(const vector<OptionWithScore<SBuilderDirective>>& aDirectives, PlayerTypes ePlayer)
 {
-	vector<OptionWithScore<BuilderDirective>> aNewDirectives;
-	vector<OptionWithScore<BuilderDirective>> aNoTwoAdjacentDirectives;
-	for (vector<OptionWithScore<BuilderDirective>>::const_iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
+	vector<OptionWithScore<SBuilderDirective>> aNewDirectives;
+	vector<OptionWithScore<SBuilderDirective>> aNoTwoAdjacentDirectives;
+	for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
 	{
-		BuilderDirective eDirective = it->option;
+		SBuilderDirective eDirective = it->option;
 
 		BuildTypes eBuild = eDirective.m_eBuild;
 		if (eBuild == NO_BUILD)
@@ -1924,9 +1975,9 @@ static vector<OptionWithScore<BuilderDirective>> FilterNoTwoAdjacentDirectives(c
 		// Reduce score if there are many adjacent tiles where we may want to build the same improvement
 		CvPlot* pPlot = GC.getMap().plot(eDirective.m_sX, eDirective.m_sY);
 		int iNeighboringSameScore = 0;
-		for (vector<OptionWithScore<BuilderDirective>>::const_iterator it2 = aDirectives.begin(); it2 != aDirectives.end(); ++it2)
+		for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it2 = aDirectives.begin(); it2 != aDirectives.end(); ++it2)
 		{
-			BuilderDirective eOtherDirective = it2->option;
+			SBuilderDirective eOtherDirective = it2->option;
 
 			if (eDirective == eOtherDirective)
 				continue;
@@ -1957,23 +2008,23 @@ static vector<OptionWithScore<BuilderDirective>> FilterNoTwoAdjacentDirectives(c
 
 		int iNewScore = eDirective.m_plotBuildScore.GetPriorityScore() - iNeighboringSameScore;
 
-		aNoTwoAdjacentDirectives.push_back(OptionWithScore<BuilderDirective>(eDirective, iNewScore));
+		aNoTwoAdjacentDirectives.push_back(OptionWithScore<SBuilderDirective>(eDirective, iNewScore));
 	}
 
 	std::stable_sort(aNoTwoAdjacentDirectives.begin(), aNoTwoAdjacentDirectives.end());
 
 	// filter out non-optimal no-two-adjacent improvements
-	for (vector<OptionWithScore<BuilderDirective>>::const_iterator it = aNoTwoAdjacentDirectives.begin(); it != aNoTwoAdjacentDirectives.end(); ++it)
+	for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it = aNoTwoAdjacentDirectives.begin(); it != aNoTwoAdjacentDirectives.end(); ++it)
 	{
-		OptionWithScore<BuilderDirective> bestDirectiveWithScore = *it;
-		BuilderDirective eDirective = bestDirectiveWithScore.option;
+		OptionWithScore<SBuilderDirective> bestDirectiveWithScore = *it;
+		SBuilderDirective eDirective = bestDirectiveWithScore.option;
 		bestDirectiveWithScore.score = bestDirectiveWithScore.option.m_plotBuildScore.GetPriorityScore();
 		CvPlot* pPlot = GC.getMap().plot(bestDirectiveWithScore.option.m_sX, bestDirectiveWithScore.option.m_sY);
 		bool bAddDirective = true;
 
-		for (vector<OptionWithScore<BuilderDirective>>::const_iterator it2 = aNewDirectives.begin(); it2 != aNewDirectives.end(); ++it2)
+		for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it2 = aNewDirectives.begin(); it2 != aNewDirectives.end(); ++it2)
 		{
-			BuilderDirective eOtherDirective = it2->option;
+			SBuilderDirective eOtherDirective = it2->option;
 
 			if (eDirective.m_eBuild != eOtherDirective.m_eBuild)
 				continue;
@@ -1995,13 +2046,13 @@ static vector<OptionWithScore<BuilderDirective>> FilterNoTwoAdjacentDirectives(c
 	return aNewDirectives;
 }
 
-static vector<OptionWithScore<BuilderDirective>> FilterOnlyBestImprovements(const vector<OptionWithScore<BuilderDirective>>& aDirectives)
+static vector<OptionWithScore<SBuilderDirective>> FilterOnlyBestImprovements(const vector<OptionWithScore<SBuilderDirective>>& aDirectives)
 {
-	vector<OptionWithScore<BuilderDirective>> aNewDirectives;
+	vector<OptionWithScore<SBuilderDirective>> aNewDirectives;
 
-	for (vector<OptionWithScore<BuilderDirective>>::const_iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
+	for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
 	{
-		BuilderDirective eDirective = it->option;
+		SBuilderDirective eDirective = it->option;
 		BuildTypes eBuild = eDirective.m_eBuild;
 		CvPlot* pPlot = GC.getMap().plot(eDirective.m_sX, eDirective.m_sY);
 
@@ -2019,9 +2070,9 @@ static vector<OptionWithScore<BuilderDirective>> FilterOnlyBestImprovements(cons
 		int iMaxScore = eDirective.m_plotBuildScore.GetMaxScore();
 
 		bool bInclude = true;
-		for (vector<OptionWithScore<BuilderDirective>>::const_iterator it2 = aDirectives.begin(); it2 != aDirectives.end(); ++it2)
+		for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it2 = aDirectives.begin(); it2 != aDirectives.end(); ++it2)
 		{
-			BuilderDirective eOtherDirective = it2->option;
+			SBuilderDirective eOtherDirective = it2->option;
 
 			if (eDirective == eOtherDirective)
 				continue;
@@ -2058,9 +2109,9 @@ static vector<OptionWithScore<BuilderDirective>> FilterOnlyBestImprovements(cons
 	return aNewDirectives;
 }
 
-void CvBuilderTaskingAI::UpdateGreatPersonDirectives(vector<OptionWithScore<BuilderDirective>>& aDirectives) const
+void CvBuilderTaskingAI::UpdateGreatPersonDirectives(vector<OptionWithScore<SBuilderDirective>>& aDirectives) const
 {
-	for (vector<OptionWithScore<BuilderDirective>>::iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
+	for (vector<OptionWithScore<SBuilderDirective>>::iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
 	{
 		BuildTypes eBuild = it->option.m_eBuild;
 		if (eBuild == NO_BUILD)
@@ -2079,13 +2130,13 @@ void CvBuilderTaskingAI::UpdateGreatPersonDirectives(vector<OptionWithScore<Buil
 	}
 }
 
-int CvBuilderTaskingAI::GetBestNonGPDirectiveScoreInPlot(const CvPlot* pPlot, const vector<OptionWithScore<BuilderDirective>>& aDirectives) const
+int CvBuilderTaskingAI::GetBestNonGPDirectiveScoreInPlot(const CvPlot* pPlot, const vector<OptionWithScore<SBuilderDirective>>& aDirectives) const
 {
 	int iBestScoreInPlot = 0;
 
-	for (vector<OptionWithScore<BuilderDirective>>::const_iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
+	for (vector<OptionWithScore<SBuilderDirective>>::const_iterator it = aDirectives.begin(); it != aDirectives.end(); ++it)
 	{
-		BuilderDirective eDirective = it->option;
+		SBuilderDirective eDirective = it->option;
 
 		if (eDirective.m_sX != pPlot->getX() || eDirective.m_sY != pPlot->getY())
 			continue;
@@ -2114,10 +2165,10 @@ int CvBuilderTaskingAI::GetBestNonGPDirectiveScoreInPlot(const CvPlot* pPlot, co
 	return iBestScoreInPlot;
 }
 
-vector<OptionWithScore<BuilderDirective>> CvBuilderTaskingAI::GetImprovementDirectives()
+vector<OptionWithScore<SBuilderDirective>> CvBuilderTaskingAI::GetImprovementDirectives()
 {
 	PlayerTypes ePlayer = m_pPlayer->GetID();
-	vector<OptionWithScore<BuilderDirective>> aDirectives;
+	vector<OptionWithScore<SBuilderDirective>> aDirectives;
 
 	// Check which builds we can build first
 	vector<BuildTypes> aPossibleBuilds; // contains all builds we can build with our current units or with any regular worker
@@ -2221,7 +2272,7 @@ vector<OptionWithScore<BuilderDirective>> CvBuilderTaskingAI::GetImprovementDire
 			if (pPlot->getImprovementType() != NO_IMPROVEMENT && !pPlot->IsImprovementPillaged())
 			{
 				PlotBuildScore pScore = ScorePlotBuild(pPlot, pPlot->getImprovementType(), NO_BUILD);
-				aDirectives.push_back(OptionWithScore<BuilderDirective>(BuilderDirective(BuilderDirective::KEEP_IMPROVEMENT, NO_BUILD, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), pScore), pScore.GetPriorityScore()));
+				aDirectives.push_back(OptionWithScore<SBuilderDirective>(SBuilderDirective(SBuilderDirective::KEEP_IMPROVEMENT, NO_BUILD, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), pScore), pScore.GetPriorityScore()));
 			}
 		}
 
@@ -2426,7 +2477,7 @@ int CvBuilderTaskingAI::GetFutureYields(ImprovementTypes eImprovement, YieldType
 }
 
 /// Evaluating a plot to determine what improvement could be best there
-void CvBuilderTaskingAI::AddImprovingPlotsDirective(vector<OptionWithScore<BuilderDirective>> &aDirectives, CvPlot* pPlot, CvCity* pCity, const vector<BuildTypes> aBuildsToConsider)
+void CvBuilderTaskingAI::AddImprovingPlotsDirective(vector<OptionWithScore<SBuilderDirective>> &aDirectives, CvPlot* pPlot, CvCity* pCity, const vector<BuildTypes> aBuildsToConsider)
 {
 	ImprovementTypes eExistingImprovement = pPlot->getImprovementType();
 
@@ -2523,7 +2574,7 @@ void CvBuilderTaskingAI::AddImprovingPlotsDirective(vector<OptionWithScore<Build
 			continue;
 		}
 		
-		BuilderDirective::BuilderDirectiveType eDirectiveType = bWillConnectResource ? BuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE : BuilderDirective::BUILD_IMPROVEMENT;
+		SBuilderDirective::BuilderDirectiveType eDirectiveType = bWillConnectResource ? SBuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE : SBuilderDirective::BUILD_IMPROVEMENT;
 		ResourceTypes eConnectedResource = bWillConnectResource ? eResource : NO_RESOURCE;
 
 		if (bCanBuild)
@@ -2554,7 +2605,7 @@ void CvBuilderTaskingAI::AddImprovingPlotsDirective(vector<OptionWithScore<Build
 				bCanChop = false;
 		}
 
-		BuilderDirective directive(eDirectiveType, eBuild, eConnectedResource, pkImprovementInfo->IsCreatedByGreatPerson(), bCanBuild && bCanChop, pPlot->getX(), pPlot->getY(), pScore);
+		SBuilderDirective directive(eDirectiveType, eBuild, eConnectedResource, pkImprovementInfo->IsCreatedByGreatPerson(), bCanBuild && bCanChop, pPlot->getX(), pPlot->getY(), pScore);
 
 		if (m_bLogging)
 		{
@@ -2569,20 +2620,20 @@ void CvBuilderTaskingAI::AddImprovingPlotsDirective(vector<OptionWithScore<Build
 			LogInfo(strTemp, m_pPlayer);
 		}
 
-		aDirectives.push_back(OptionWithScore<BuilderDirective>(directive, pScore.GetPriorityScore()));
+		aDirectives.push_back(OptionWithScore<SBuilderDirective>(directive, pScore.GetPriorityScore()));
 
 		// If we can't build it yet, we may still want to prechop it
 		if (!bCanBuild && bCanChop)
 		{
 			PlotBuildScore chopScore = PlotBuildScore(pScore.m_iScore / 3, pScore.m_iPotentialScore + pScore.m_iScore * 2 / 3 - 1, pScore.m_iUnusedYieldScore, pScore.m_iScorePenalty);
-			BuilderDirective chopDirective(BuilderDirective::REMOVE_FEATURE, eChopBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), chopScore);
-			aDirectives.push_back(OptionWithScore<BuilderDirective>(chopDirective, chopScore.GetPriorityScore()));
+			SBuilderDirective chopDirective(SBuilderDirective::REMOVE_FEATURE, eChopBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), chopScore);
+			aDirectives.push_back(OptionWithScore<SBuilderDirective>(chopDirective, chopScore.GetPriorityScore()));
 		}
 	}
 }
 
 /// Adds a directive if the unit can construct a road in the plot
-void CvBuilderTaskingAI::AddRemoveRouteDirective(vector<OptionWithScore<BuilderDirective>> &aDirectives, CvPlot* pPlot, int iNetGoldTimes100)
+void CvBuilderTaskingAI::AddRemoveRouteDirective(vector<OptionWithScore<SBuilderDirective>> &aDirectives, CvPlot* pPlot, int iNetGoldTimes100)
 {
 	//minors stay out
 	if (m_pPlayer->isMinorCiv())
@@ -2642,7 +2693,7 @@ void CvBuilderTaskingAI::AddRemoveRouteDirective(vector<OptionWithScore<BuilderD
 	if (iNetGoldTimes100 < -1000)
 		iWeight *= 10;
 
-	BuilderDirective directive(BuilderDirective::REMOVE_ROAD, m_eRemoveRouteBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), PlotBuildScore(iWeight));
+	SBuilderDirective directive(SBuilderDirective::REMOVE_ROAD, m_eRemoveRouteBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), PlotBuildScore(iWeight));
 
 	if (m_bLogging)
 	{
@@ -2656,10 +2707,10 @@ void CvBuilderTaskingAI::AddRemoveRouteDirective(vector<OptionWithScore<BuilderD
 		LogInfo(strTemp, m_pPlayer);
 	}
 
-	aDirectives.push_back(OptionWithScore<BuilderDirective>(directive, iWeight));
+	aDirectives.push_back(OptionWithScore<SBuilderDirective>(directive, iWeight));
 }
 
-void CvBuilderTaskingAI::AddRouteOrRepairDirective(vector<OptionWithScore<BuilderDirective>>& aDirectives, CvPlot* pPlot, RouteTypes eRoute, PlotBuildScore plotBuildScore, RoutePurpose ePurpose)
+void CvBuilderTaskingAI::AddRouteOrRepairDirective(vector<OptionWithScore<SBuilderDirective>>& aDirectives, CvPlot* pPlot, RouteTypes eRoute, PlotBuildScore plotBuildScore, RoutePurpose ePurpose)
 {
 	m_bestRouteTypeAndValue[pPlot->GetPlotIndex()] = make_pair(eRoute, plotBuildScore.GetPriorityScore());
 	m_plotRoutePurposes[pPlot->GetPlotIndex()] = ePurpose;
@@ -2698,7 +2749,7 @@ void CvBuilderTaskingAI::AddRouteOrRepairDirective(vector<OptionWithScore<Builde
 }
 
 /// Adds a directive if the unit can construct a road in the plot
-void CvBuilderTaskingAI::AddRouteDirective(vector<OptionWithScore<BuilderDirective>> &aDirectives, CvPlot* pPlot, RouteTypes eRoute, PlotBuildScore plotBuildScore)
+void CvBuilderTaskingAI::AddRouteDirective(vector<OptionWithScore<SBuilderDirective>> &aDirectives, CvPlot* pPlot, RouteTypes eRoute, PlotBuildScore plotBuildScore)
 {
 	if (m_pPlayer->GetSameRouteBenefitFromTrait(pPlot, eRoute))
 		return;
@@ -2719,7 +2770,7 @@ void CvBuilderTaskingAI::AddRouteDirective(vector<OptionWithScore<BuilderDirecti
 	if (!pRouteInfo)
 		return;
 
-	BuilderDirective directive(BuilderDirective::BUILD_ROUTE, eRouteBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), plotBuildScore);
+	SBuilderDirective directive(SBuilderDirective::BUILD_ROUTE, eRouteBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), plotBuildScore);
 
 	if(m_bLogging)
 	{
@@ -2733,11 +2784,11 @@ void CvBuilderTaskingAI::AddRouteDirective(vector<OptionWithScore<BuilderDirecti
 		LogInfo(strTemp, m_pPlayer);
 	}
 
-	aDirectives.push_back(OptionWithScore<BuilderDirective>(directive, plotBuildScore.GetPriorityScore()));
+	aDirectives.push_back(OptionWithScore<SBuilderDirective>(directive, plotBuildScore.GetPriorityScore()));
 }
 
 /// Determines if the builder should "chop" the feature in the tile
-void CvBuilderTaskingAI::AddChopDirectives(vector<OptionWithScore<BuilderDirective>> &aDirectives, CvPlot* pPlot, CvCity* pCity)
+void CvBuilderTaskingAI::AddChopDirectives(vector<OptionWithScore<SBuilderDirective>> &aDirectives, CvPlot* pPlot, CvCity* pCity)
 {
 	// if it's not within a city radius
 	if(!pPlot->isWithinTeamCityRadius(m_pPlayer->getTeam()))
@@ -2906,11 +2957,11 @@ void CvBuilderTaskingAI::AddChopDirectives(vector<OptionWithScore<BuilderDirecti
 
 	if(iWeight > 0)
 	{
-		aDirectives.push_back(OptionWithScore<BuilderDirective>(BuilderDirective(BuilderDirective::REMOVE_FEATURE, eChopBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), PlotBuildScore(iWeight)), iWeight));
+		aDirectives.push_back(OptionWithScore<SBuilderDirective>(SBuilderDirective(SBuilderDirective::REMOVE_FEATURE, eChopBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), PlotBuildScore(iWeight)), iWeight));
 	}
 }
 
-void CvBuilderTaskingAI::AddRepairImprovementDirective(vector<OptionWithScore<BuilderDirective>>& aDirectives, CvPlot* pPlot, CvCity* pWorkingCity)
+void CvBuilderTaskingAI::AddRepairImprovementDirective(vector<OptionWithScore<SBuilderDirective>>& aDirectives, CvPlot* pPlot, CvCity* pWorkingCity)
 {
 	if (!pPlot)
 		return;
@@ -2930,11 +2981,11 @@ void CvBuilderTaskingAI::AddRepairImprovementDirective(vector<OptionWithScore<Bu
 
 	if (pScore.GetMaxScore() > 0)
 	{
-		aDirectives.push_back(OptionWithScore<BuilderDirective>(BuilderDirective(BuilderDirective::REPAIR_IMPROVEMENT, m_eRepairBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), pScore), pScore.GetPriorityScore()));
+		aDirectives.push_back(OptionWithScore<SBuilderDirective>(SBuilderDirective(SBuilderDirective::REPAIR_IMPROVEMENT, m_eRepairBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), pScore), pScore.GetPriorityScore()));
 	}
 }
 
-void CvBuilderTaskingAI::AddRepairRouteDirective(vector<OptionWithScore<BuilderDirective>>& aDirectives, CvPlot* pPlot, RouteTypes eRoute, PlotBuildScore plotBuildScore)
+void CvBuilderTaskingAI::AddRepairRouteDirective(vector<OptionWithScore<SBuilderDirective>>& aDirectives, CvPlot* pPlot, RouteTypes eRoute, PlotBuildScore plotBuildScore)
 {
 	if (!pPlot)
 		return;
@@ -2949,12 +3000,12 @@ void CvBuilderTaskingAI::AddRepairRouteDirective(vector<OptionWithScore<BuilderD
 
 	if (plotBuildScore.GetMaxScore() > 0)
 	{
-		aDirectives.push_back(OptionWithScore<BuilderDirective>(BuilderDirective(BuilderDirective::REPAIR_ROUTE, m_eRepairBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), plotBuildScore), plotBuildScore.GetPriorityScore()));
+		aDirectives.push_back(OptionWithScore<SBuilderDirective>(SBuilderDirective(SBuilderDirective::REPAIR_ROUTE, m_eRepairBuild, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), plotBuildScore), plotBuildScore.GetPriorityScore()));
 	}
 }
 
 // Everything means less than zero, hey
-void CvBuilderTaskingAI::AddScrubFalloutDirectives(vector<OptionWithScore<BuilderDirective>> &aDirectives, CvPlot* pPlot, CvCity* pCity)
+void CvBuilderTaskingAI::AddScrubFalloutDirectives(vector<OptionWithScore<SBuilderDirective>> &aDirectives, CvPlot* pPlot, CvCity* pCity)
 {
 	if(m_eFalloutFeature == NO_FEATURE || m_eFalloutRemove == NO_BUILD)
 	{
@@ -2974,7 +3025,7 @@ void CvBuilderTaskingAI::AddScrubFalloutDirectives(vector<OptionWithScore<Builde
 	{
 		int iWeight =/*20000*/ GD_INT_GET(BUILDER_TASKING_BASELINE_SCRUB_FALLOUT);
 
-		aDirectives.push_back(OptionWithScore<BuilderDirective>(BuilderDirective(BuilderDirective::REMOVE_FEATURE, m_eFalloutRemove, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), PlotBuildScore(iWeight)), iWeight));
+		aDirectives.push_back(OptionWithScore<SBuilderDirective>(SBuilderDirective(SBuilderDirective::REMOVE_FEATURE, m_eFalloutRemove, NO_RESOURCE, false, true, pPlot->getX(), pPlot->getY(), PlotBuildScore(iWeight)), iWeight));
 	}
 }
 
@@ -3169,22 +3220,28 @@ bool CvBuilderTaskingAI::DoesBuildHelpRush(CvPlot* pPlot, BuildTypes eBuild)
 	return true;
 }
 
-static BuildTypes GetPlannedBuildInPlot(const CvPlot* pPlot, const SBuilderState& sState)
+static BuildTypes GetPlannedBuildInPlot(const CvPlot* pPlot, const SBuilderState* pState)
 {
-	map<int, pair<BuildTypes, ImprovementTypes>>::const_iterator it = sState.mChangedPlotImprovements.find(pPlot->GetPlotIndex());
+	if (!pState)
+		return NO_BUILD;
 
-	if (it != sState.mChangedPlotImprovements.end())
+	std::tr1::unordered_map<int, pair<BuildTypes, ImprovementTypes>>::const_iterator it = pState->m_ChangedPlotImprovements.find(pPlot->GetPlotIndex());
+
+	if (it != pState->m_ChangedPlotImprovements.end())
 		return it->second.first;
 
 	return NO_BUILD;
 }
 
-static ImprovementTypes GetPlannedImprovementInPlot(const CvPlot* pPlot, const SBuilderState& sState)
+static ImprovementTypes GetPlannedImprovementInPlot(const CvPlot* pPlot, const SBuilderState* pState)
 {
-	map<int, pair<BuildTypes, ImprovementTypes>>::const_iterator it = sState.mChangedPlotImprovements.find(pPlot->GetPlotIndex());
+	if (pState)
+	{
+		std::tr1::unordered_map<int, pair<BuildTypes, ImprovementTypes>>::const_iterator it = pState->m_ChangedPlotImprovements.find(pPlot->GetPlotIndex());
 
-	if (it != sState.mChangedPlotImprovements.end())
-		return it->second.second;
+		if (it != pState->m_ChangedPlotImprovements.end())
+			return it->second.second;
+	}
 
 	if (!pPlot->IsImprovementPillaged())
 		return pPlot->getImprovementType();
@@ -3192,17 +3249,20 @@ static ImprovementTypes GetPlannedImprovementInPlot(const CvPlot* pPlot, const S
 	return NO_IMPROVEMENT;
 }
 
-static FeatureTypes GetPlannedFeatureInPlot(const CvPlot* pPlot, const SBuilderState& sState)
+static FeatureTypes GetPlannedFeatureInPlot(const CvPlot* pPlot, const SBuilderState* pState)
 {
-	map<int, FeatureTypes>::const_iterator it = sState.mChangedPlotFeatures.find(pPlot->GetPlotIndex());
+	if (pState)
+	{
+		std::tr1::unordered_map<int, FeatureTypes>::const_iterator it = pState->m_ChangedPlotFeatures.find(pPlot->GetPlotIndex());
 
-	if (it != sState.mChangedPlotFeatures.end())
-		return it->second;
+		if (it != pState->m_ChangedPlotFeatures.end())
+			return it->second;
+	}
 
 	return pPlot->getFeatureType();
 }
 
-static fraction GetCurrentAdjacencyScoreFromImprovementsAndTerrain(const CvPlot* pPlot, const CvImprovementEntry& kImprovementInfo, YieldTypes eYield, const SBuilderState& sState)
+static fraction GetCurrentAdjacencyScoreFromImprovementsAndTerrain(const CvPlot* pPlot, const CvImprovementEntry& kImprovementInfo, YieldTypes eYield, const SBuilderState* pState)
 {
 	fraction fTotalAdjacencyBonus = 0;
 
@@ -3219,7 +3279,7 @@ static fraction GetCurrentAdjacencyScoreFromImprovementsAndTerrain(const CvPlot*
 		if (fAdjacentTerrainYield != 0)
 			fTotalAdjacencyBonus += fAdjacentTerrainYield;
 
-		ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, sState);
+		ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, pState);
 
 		if (eAdjacentImprovement == NO_IMPROVEMENT)
 			continue;
@@ -3281,7 +3341,7 @@ static Likelyhood GetPlotTheftLikelyhood(const CvPlayer* pPlayer, const CvPlot* 
 	}
 }
 
-PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementTypes eImprovement, BuildTypes eBuild, const SBuilderState& sState)
+PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementTypes eImprovement, BuildTypes eBuild, const SBuilderState* pState)
 {
 	const CvBuildInfo* pkBuildInfo = eBuild != NO_BUILD ? GC.getBuildInfo(eBuild) : NULL;
 
@@ -3452,18 +3512,21 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 	int iExtraResource = 0;
 	if (bWillBeOwned && ((eResource != NO_RESOURCE && pkImprovementInfo && pkImprovementInfo->IsConnectsResource(eResource)) || eResourceFromImprovement != NO_RESOURCE))
 	{
-		map<ResourceTypes, int>::const_iterator it;
-		if (eResourceFromImprovement != NO_RESOURCE)
+		if (pState)
 		{
-			it = sState.mExtraResources.find(eResourceFromImprovement);
-			if (it != sState.mExtraResources.end())
-				iExtraResource = it->second;
-		}
-		else
-		{
-			it = sState.mExtraResources.find(eResource);
-			if (it != sState.mExtraResources.end())
-				iExtraResource = it->second;
+			std::tr1::unordered_map<ResourceTypes, int>::const_iterator it;
+			if (eResourceFromImprovement != NO_RESOURCE)
+			{
+				it = pState->m_ExtraResources.find(eResourceFromImprovement);
+				if (it != pState->m_ExtraResources.end())
+					iExtraResource = it->second;
+			}
+			else
+			{
+				it = pState->m_ExtraResources.find(eResource);
+				if (it != pState->m_ExtraResources.end())
+					iExtraResource = it->second;
+			}
 		}
 	}
 
@@ -3496,7 +3559,7 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 			if (pAdjacentPlot->isCity())
 				continue;
 
-			const ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, sState);
+			const ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, pState);
 
 			if (eAdjacentImprovement != NO_IMPROVEMENT)
 				continue;
@@ -3589,6 +3652,19 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 				}
 			}
 
+			// Normalize yield per era
+			if (pkImprovementInfo)
+			{
+				int iYieldPerEra = pkImprovementInfo->GetYieldChangePerEra(eYield);
+				if (iYieldPerEra != 0)
+				{
+					int iMaxNumEras = m_pPlayer->GetCurrentEra();
+
+					// Assume the average era is in the middle of our era and ancient (0)
+					iNewYieldTimes100 += 50 * iYieldPerEra * iMaxNumEras;
+				}
+			}
+
 			if (pkImprovementInfo)
 			{
 				// Assume we love the king day is active 85% of the time
@@ -3650,7 +3726,7 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 						continue;
 
 					FeatureTypes eOldAdjacentFeature = pAdjacentPlot->getFeatureType();
-					FeatureTypes eNewAdjacentFeature = GetPlannedFeatureInPlot(pAdjacentPlot, sState);
+					FeatureTypes eNewAdjacentFeature = GetPlannedFeatureInPlot(pAdjacentPlot, pState);
 					// The feature in an adjacent plot has been changed
 					if (eNewAdjacentFeature != eOldAdjacentFeature)
 					{
@@ -3666,7 +3742,7 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 					}
 
 					const ImprovementTypes eOldAdjacentImprovement = !pAdjacentPlot->IsImprovementPillaged() ? pAdjacentPlot->getImprovementType() : NO_IMPROVEMENT;
-					const ImprovementTypes eNewAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, sState);
+					const ImprovementTypes eNewAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, pState);
 
 					// The improvement in an adjacent plot has been changed
 					if (eNewAdjacentImprovement != eOldAdjacentImprovement)
@@ -3734,8 +3810,8 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 
 					if (pCityAdjacentPlot)
 					{
-						FeatureTypes eAdjacentFeature = GetPlannedFeatureInPlot(pCityAdjacentPlot, sState);
-						ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pCityAdjacentPlot, sState);
+						FeatureTypes eAdjacentFeature = GetPlannedFeatureInPlot(pCityAdjacentPlot, pState);
+						ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pCityAdjacentPlot, pState);
 
 						if (eAdjacentFeature == eFeature && eAdjacentImprovement == NO_IMPROVEMENT)
 						{
@@ -3795,7 +3871,7 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 					}
 				}
 
-				ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, sState);
+				ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, pState);
 
 				if (eAdjacentImprovement != NO_IMPROVEMENT)
 				{
@@ -3805,7 +3881,7 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 					{
 						// How much extra yield we give to adjacent tiles with a certain improvement
 						fraction fAdjacentImprovementYield = eImprovement != NO_IMPROVEMENT ? pkAdjacentImprovementInfo->GetYieldPerXAdjacentImprovement(eYield, eImprovement) : 0;
-						fraction fCurrentAdjacentImprovementYield = GetCurrentAdjacencyScoreFromImprovementsAndTerrain(pAdjacentPlot, *pkAdjacentImprovementInfo, eYield, sState);
+						fraction fCurrentAdjacentImprovementYield = GetCurrentAdjacencyScoreFromImprovementsAndTerrain(pAdjacentPlot, *pkAdjacentImprovementInfo, eYield, pState);
 
 						if (!bIsBuild)
 							fCurrentAdjacentImprovementYield -= fAdjacentImprovementYield;
@@ -3888,7 +3964,7 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 					fCurrentBonusToThisTile += fYieldPerXAdjacentTerrain;
 				}
 
-				const ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, sState);
+				const ImprovementTypes eAdjacentImprovement = GetPlannedImprovementInPlot(pAdjacentPlot, pState);
 
 				if (eAdjacentImprovement != NO_IMPROVEMENT)
 				{
@@ -4158,7 +4234,7 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 	bool bNewIsDefensive = pkImprovementInfo && (pkImprovementInfo->GetDefenseModifier() > 0 || pkImprovementInfo->GetNearbyEnemyDamage() > 0);
 	if (bNewIsDefensive && bWillBeOwned)
 	{
-		int iDefenseBuildValue = pPlot->GetDefenseBuildValue(m_pPlayer->GetID(), eBuild, eImprovement, sState);
+		int iDefenseBuildValue = pPlot->GetDefenseBuildValue(m_pPlayer->GetID(), eBuild, eImprovement, pState);
 		if (iDefenseBuildValue > 0)
 			iSecondaryScore += iDefenseBuildValue;
 		else
@@ -4190,7 +4266,7 @@ PlotBuildScore CvBuilderTaskingAI::ScorePlotBuild(CvPlot* pPlot, ImprovementType
 				if (!pPotentialOtherImprovementPlot || pPotentialOtherImprovementPlot->getOwner() != m_pPlayer->GetID())
 					continue;
 
-				const ImprovementTypes eOtherImprovement = GetPlannedImprovementInPlot(pPotentialOtherImprovementPlot, sState);
+				const ImprovementTypes eOtherImprovement = GetPlannedImprovementInPlot(pPotentialOtherImprovementPlot, pState);
 
 				if (eOtherImprovement == eImprovement)
 				{
@@ -4510,14 +4586,13 @@ void CvBuilderTaskingAI::UpdateAllCityWorstPlots()
 	m_worstCityPlotValues.clear();
 
 	int iLoopCity;
-	const SBuilderState& sState = SBuilderState::DefaultInstance();
 	for (const CvCity* pLoopCity = m_pPlayer->firstCity(&iLoopCity); pLoopCity != NULL; pLoopCity = m_pPlayer->nextCity(&iLoopCity))
 	{
-		UpdateCityWorstPlots(pLoopCity, sState);
+		UpdateCityWorstPlots(pLoopCity, NULL);
 	}
 }
 
-void CvBuilderTaskingAI::UpdateCityWorstPlots(const CvCity* pCity, const SBuilderState& sState)
+void CvBuilderTaskingAI::UpdateCityWorstPlots(const CvCity* pCity, const SBuilderState* pState)
 {
 	int iWorstValue = MAX_INT;
 
@@ -4529,7 +4604,7 @@ void CvBuilderTaskingAI::UpdateCityWorstPlots(const CvCity* pCity, const SBuilde
 		{
 			if (pCity->GetCityCitizens()->IsWorkingPlot(pLoopPlot))
 			{
-				BuildTypes eBuild = GetPlannedBuildInPlot(pLoopPlot, sState);
+				BuildTypes eBuild = GetPlannedBuildInPlot(pLoopPlot, pState);
 
 				int iValue = GetPlotYieldValueSimplified(pLoopPlot, eBuild);
 				if (iValue < iWorstValue)
@@ -4839,7 +4914,7 @@ void CvBuilderTaskingAI::LogYieldInfo(const CvString& strNewLogStr, CvPlayer* pP
 }
 
 /// Logs all the directives for the unit
-void CvBuilderTaskingAI::LogDirectives(vector<OptionWithScore<BuilderDirective>> directives)
+void CvBuilderTaskingAI::LogDirectives(vector<OptionWithScore<SBuilderDirective>> directives)
 {
 	if(!m_bLogging)
 		return;
@@ -4859,7 +4934,7 @@ void CvBuilderTaskingAI::LogDirectives(vector<OptionWithScore<BuilderDirective>>
 	}
 }
 
-void CvBuilderTaskingAI::LogDirective(BuilderDirective directive, int iWeight, bool bChosen)
+void CvBuilderTaskingAI::LogDirective(SBuilderDirective directive, int iWeight, bool bChosen)
 {
 	if(!m_bLogging)
 		return;
@@ -4873,28 +4948,28 @@ void CvBuilderTaskingAI::LogDirective(BuilderDirective directive, int iWeight, b
 
 	switch(directive.m_eDirectiveType)
 	{
-	case BuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE:
+	case SBuilderDirective::BUILD_IMPROVEMENT_ON_RESOURCE:
 		strLog += "BUILD_IMPROVEMENT_ON_RESOURCE,";
 		break;
-	case BuilderDirective::BUILD_IMPROVEMENT:
+	case SBuilderDirective::BUILD_IMPROVEMENT:
 		strLog += "BUILD_IMPROVEMENT,";
 		break;
-	case BuilderDirective::REPAIR_IMPROVEMENT:
+	case SBuilderDirective::REPAIR_IMPROVEMENT:
 		strLog += "REPAIR_IMPROVEMENT,";
 		break;
-	case BuilderDirective::REPAIR_ROUTE:
+	case SBuilderDirective::REPAIR_ROUTE:
 		strLog += "REPAIR_ROUTE,";
 		break;
-	case BuilderDirective::BUILD_ROUTE:
+	case SBuilderDirective::BUILD_ROUTE:
 		strLog += "BUILD_ROUTE,";
 		break;
-	case BuilderDirective::REMOVE_FEATURE:
+	case SBuilderDirective::REMOVE_FEATURE:
 		strLog += "CHOP,";
 		break;
-	case BuilderDirective::REMOVE_ROAD:
+	case SBuilderDirective::REMOVE_ROAD:
 		strLog += "REMOVE_ROAD,";
 		break;
-	case BuilderDirective::KEEP_IMPROVEMENT:
+	case SBuilderDirective::KEEP_IMPROVEMENT:
 		strLog += "KEEP_IMPROVEMENT,";
 		break;
 	}
@@ -4919,7 +4994,7 @@ void CvBuilderTaskingAI::LogDirective(BuilderDirective directive, int iWeight, b
 		strLog += ",";
 	}
 
-	if(directive.m_eDirectiveType == BuilderDirective::REPAIR_IMPROVEMENT)
+	if(directive.m_eDirectiveType == SBuilderDirective::REPAIR_IMPROVEMENT)
 	{
 		CvPlot* pPlot = GC.getMap().plot(directive.m_sX, directive.m_sY);
 		if(pPlot->getImprovementType() != NO_IMPROVEMENT)
@@ -4931,7 +5006,7 @@ void CvBuilderTaskingAI::LogDirective(BuilderDirective directive, int iWeight, b
 			}
 		}
 	}
-	else if (directive.m_eDirectiveType == BuilderDirective::REPAIR_ROUTE)
+	else if (directive.m_eDirectiveType == SBuilderDirective::REPAIR_ROUTE)
 	{
 		CvPlot* pPlot = GC.getMap().plot(directive.m_sX, directive.m_sY);
 		if (pPlot->getRouteType() != NO_ROUTE)
@@ -5021,7 +5096,7 @@ void CvBuilderTaskingAI::UpdateProjectedPlotYields(const CvPlot* pPlot, BuildTyp
 		{
 			if ((YieldTypes)ui <= YIELD_CULTURE_LOCAL)
 			{
-				m_aiProjectedPlotYields[ui] = pPlot->getYieldWithBuild(eBuild, (YieldTypes)ui, false, eForceCityConnection, m_pPlayer->GetID(), pOwningCity, pReligion, pBelief);
+				m_aiProjectedPlotYields[ui] = pPlot->getYieldWithBuild(eBuild, (YieldTypes)ui, false, eForceCityConnection, m_pPlayer->GetID(), pOwningCity, pReligion, pBelief, NULL, true);
 				m_aiProjectedPlotYields[ui] = max(m_aiProjectedPlotYields[ui], 0);
 
 				if (MOD_BALANCE_PERMANENT_PANTHEONS)
@@ -5032,7 +5107,7 @@ void CvBuilderTaskingAI::UpdateProjectedPlotYields(const CvPlot* pPlot, BuildTyp
 						{
 							if (pReligion == NULL || !pReligion->m_Beliefs.IsPantheonBeliefInReligion(ePantheonBelief, eMajority, m_pPlayer->GetID())) // check that the our religion does not have our belief, to prevent double counting
 							{
-								m_aiProjectedPlotYields[ui] += pPlot->getYieldWithBuild(eBuild, (YieldTypes)ui, false, eForceCityConnection, m_pPlayer->GetID(), pOwningCity, pPantheon, NULL);
+								m_aiProjectedPlotYields[ui] += pPlot->getYieldWithBuild(eBuild, (YieldTypes)ui, false, eForceCityConnection, m_pPlayer->GetID(), pOwningCity, pPantheon, NULL, NULL, true);
 								m_aiProjectedPlotYields[ui] = max(m_aiProjectedPlotYields[ui], 0);
 							}
 						}
@@ -5057,7 +5132,7 @@ void CvBuilderTaskingAI::UpdateProjectedPlotYields(const CvPlot* pPlot, BuildTyp
 		{
 			if ((YieldTypes)ui <= YIELD_CULTURE_LOCAL)
 			{
-				m_aiProjectedPlotYields[ui] = pPlot->getYieldWithBuild(eBuild, (YieldTypes)ui, false, eForceCityConnection, m_pPlayer->GetID(), NULL, NULL, NULL);
+				m_aiProjectedPlotYields[ui] = pPlot->getYieldWithBuild(eBuild, (YieldTypes)ui, false, eForceCityConnection, m_pPlayer->GetID(), NULL, NULL, NULL, NULL, true);
 				m_aiProjectedPlotYields[ui] = max(m_aiProjectedPlotYields[ui], 0);
 
 				/*if (m_bLogging) {
